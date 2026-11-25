@@ -1,30 +1,29 @@
 import hashlib
 import secrets
-import threading
-import time
 from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 import bcrypt
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, Header
 from reva_backend.config import get_settings
 from reva_backend.database import conexion
+from reva_backend.repositories.mercado_repository import MercadoRepository
 from reva_backend.schemas.mercado import Acceso, Registro, Tienda, Producto, ItemCarrito, Pedido, Puja, Moderacion, EstadoCuenta, Reporte
 from reva_backend.schemas.mercado import Campana
+from reva_backend.services.integraciones_service import consultar_documento, geocodificar as buscar_direccion
 
 router = APIRouter(prefix='/api')
-_cache_geocodificacion: dict[str, list[dict]] = {}
-_bloqueo_geocodificacion = threading.Lock()
-_ultima_consulta_geocodificacion = 0.0
 
 def exigir(condicion, mensaje, codigo=400):
     if not condicion:
         raise HTTPException(codigo,mensaje)
 
-def usuario(authorization: str = Header(default=''), db=Depends(conexion)):
+def repositorio(db=Depends(conexion)):
+    return MercadoRepository(db)
+
+def usuario(authorization: str = Header(default=''), repo=Depends(repositorio)):
     token = authorization.removeprefix('Bearer ')
-    fila = db.execute('SELECT u.id_usuario,u.correo,u.nombres,u.rol FROM usuarios u JOIN sesiones s USING(id_usuario) WHERE s.token_hash=%s AND s.vence_en>now() AND u.activo', (hashlib.sha256(token.encode()).hexdigest(),)).fetchone()
+    fila = repo.usuario_con_sesion_activa(token)
     exigir(fila is not None,'Inicia sesión para continuar.',401)
     return fila
 
@@ -76,32 +75,18 @@ def activar(id_plan: str,u=Depends(usuario),db=Depends(conexion)):
     db.execute("INSERT INTO suscripciones VALUES (%s,%s,now()+interval '30 days',true) ON CONFLICT(id_usuario) DO UPDATE SET id_plan=excluded.id_plan,vence_en=excluded.vence_en",(u['id_usuario'],id_plan))
     return {'mensaje':'Plan de demostración activado por 30 días. No se realizó ningún cobro.'}
 
-def documento(tipo,numero):
-    token = get_settings().apisperu_token
-    exigir(bool(token),'Configura APISPERU_TOKEN para consultar documentos.',503)
-    try:
-        respuesta = httpx.get(f'https://dniruc.apisperu.com/api/v1/{tipo}/{numero}',headers={'Authorization':f'Bearer {token}'},timeout=12)
-        if respuesta.status_code==404:
-            raise HTTPException(404,'Documento no encontrado')
-        respuesta.raise_for_status()
-        datos = respuesta.json()
-        exigir(datos.get('success') is not False,'Documento no encontrado',404)
-        return datos
-    except (httpx.HTTPError,ValueError):
-        raise HTTPException(502,'El proveedor de documentos no respondió. Intenta nuevamente.')
-
 @router.get('/documentos/{tipo}/{numero}')
 def consultar_documento(tipo: str,numero: str,consentimiento: bool=False,u=Depends(usuario)):
     exigir(consentimiento,'Se requiere consentimiento.')
     exigir(tipo in ('dni','ruc') and numero.isdecimal() and len(numero)==(8 if tipo=='dni' else 11),'Documento inválido')
-    datos=documento(tipo,numero)
+    datos=consultar_documento(tipo,numero)
     permitidos=('dni','nombres','apellidoPaterno','apellidoMaterno') if tipo=='dni' else ('ruc','razonSocial','estado','condicion','direccion')
     return {k:datos.get(k) for k in permitidos}
 
 @router.post('/tienda')
 def tienda(datos:Tienda,u=Depends(usuario),db=Depends(conexion)):
     exigir(datos.consentimiento,'Acepta consultar tu documento.')
-    identidad = documento('dni',datos.dni)
+    identidad = consultar_documento('dni',datos.dni)
     exigir(identidad.get('nombres'),'No se pudo validar el DNI.',422)
     db.execute("UPDATE usuarios SET dni=%s,nombres=%s,rol=CASE WHEN rol='administrador' THEN rol ELSE 'vendedor' END WHERE id_usuario=%s",(datos.dni,' '.join(str(identidad.get(k,'')) for k in ('nombres','apellidoPaterno','apellidoMaterno')),u['id_usuario']))
     return db.execute('INSERT INTO tiendas(id_usuario,nombre,distrito,direccion) VALUES (%s,%s,%s,%s) ON CONFLICT(id_usuario) DO UPDATE SET nombre=excluded.nombre,distrito=excluded.distrito,direccion=excluded.direccion RETURNING *',(u['id_usuario'],datos.nombre,datos.distrito,datos.direccion)).fetchone()
@@ -109,47 +94,15 @@ def tienda(datos:Tienda,u=Depends(usuario),db=Depends(conexion)):
 @router.get('/geocodificar')
 def geocodificar(direccion: str,u=Depends(usuario)):
     exigir(5<=len(direccion)<=250,'Dirección inválida')
-    agente = get_settings().nominatim_user_agent.strip()
-    exigir(bool(agente),'Configura NOMINATIM_USER_AGENT con un correo de contacto.',503)
-    consulta = ' '.join(direccion.split())
-    global _ultima_consulta_geocodificacion
-    with _bloqueo_geocodificacion:
-        if consulta in _cache_geocodificacion:
-            return _cache_geocodificacion[consulta]
-        espera = 1 - (time.monotonic() - _ultima_consulta_geocodificacion)
-        if espera > 0:
-            raise HTTPException(429,'Espera un segundo antes de buscar otra dirección.')
-    try:
-        r=httpx.get('https://nominatim.openstreetmap.org/search',params={'q':consulta,'countrycodes':'pe','format':'jsonv2','limit':5},headers={'User-Agent':agente,'Accept-Language':'es'},timeout=12)
-        r.raise_for_status()
-        data=r.json()
-        resultado = [{'direccion':x['display_name'],'lat':x['lat'],'lng':x['lon']} for x in data]
-        exigir(resultado,'No se encontró la dirección.',422)
-        with _bloqueo_geocodificacion:
-            _ultima_consulta_geocodificacion = time.monotonic()
-            _cache_geocodificacion[consulta] = resultado
-        return resultado
-    except (httpx.HTTPError,ValueError):
-        raise HTTPException(502,'No se pudo consultar el servicio de ubicaciones.')
-
-def catalogo(db,propietario=None,moderacion=False):
-    filtro='true' if moderacion else "p.estado='aprobado' AND u.activo"
-    params=()
-    if propietario:
-        filtro='t.id_usuario=%s'; params=(propietario,)
-    filas=db.execute('SELECT p.*,t.nombre AS tienda,t.distrito FROM productos p JOIN tiendas t USING(id_tienda) JOIN usuarios u ON u.id_usuario=t.id_usuario WHERE '+filtro+' ORDER BY p.creado_en DESC LIMIT 200',params).fetchall()
-    for p in filas:
-        p['variantes']=db.execute('SELECT * FROM variantes_producto WHERE id_producto=%s ORDER BY talla,color',(p['id_producto'],)).fetchall()
-        p['imagenes']=db.execute('SELECT url FROM imagenes_producto WHERE id_producto=%s',(p['id_producto'],)).fetchall()
-    return filas
+    return buscar_direccion(direccion)
 
 @router.get('/productos')
-def productos(db=Depends(conexion)):
-    return catalogo(db)
+def productos(repo=Depends(repositorio)):
+    return repo.catalogo()
 
 @router.get('/mis-productos')
-def propios(u=Depends(usuario),db=Depends(conexion)):
-    return catalogo(db,u['id_usuario'])
+def propios(u=Depends(usuario),repo=Depends(repositorio)):
+    return repo.catalogo(u['id_usuario'])
 
 @router.post('/productos',status_code=201)
 def publicar(datos:Producto,u=Depends(usuario),db=Depends(conexion)):
@@ -229,8 +182,8 @@ def pujar(id_subasta:UUID,datos:Puja,u=Depends(usuario),db=Depends(conexion)):
     return db.execute('INSERT INTO pujas(id_subasta,id_usuario,monto) VALUES (%s,%s,%s) RETURNING *',(id_subasta,u['id_usuario'],datos.monto)).fetchone()
 
 @router.get('/admin/productos')
-def pendientes(u=Depends(admin),db=Depends(conexion)):
-    return catalogo(db,moderacion=True)
+def pendientes(u=Depends(admin),repo=Depends(repositorio)):
+    return repo.catalogo(moderacion=True)
 
 @router.patch('/admin/productos/{identificador}')
 def moderar(identificador:UUID,datos:Moderacion,u=Depends(admin),db=Depends(conexion)):

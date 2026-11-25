@@ -2,7 +2,8 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { Api, Producto } from '../../services/api';
+import { Producto } from '../../interfaces/producto.interface';
+import { Api } from '../../services/api.service';
 
 @Component({selector:'app-mercado',imports:[CommonModule,FormsModule,RouterLink],templateUrl:'./mercado.html'})
 export class Mercado implements OnInit {

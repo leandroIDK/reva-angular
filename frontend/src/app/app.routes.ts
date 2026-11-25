@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { CanMatchFn, Router, Routes } from '@angular/router';
-import { Api } from './services/api';
+import { Api } from './services/api.service';
 
 const accesoAdministrador: CanMatchFn = async () => {
   const api = inject(Api);

@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Anuncios } from './anuncios';
+import { Anuncios } from '../../components/anuncios/anuncios';
 
 @Component({
   selector: 'app-home',

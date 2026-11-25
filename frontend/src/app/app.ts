@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { Api } from './services/api';
+import { Api } from './services/api.service';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 @Component({
