@@ -19,7 +19,17 @@
             "styles": ["src/styles.css"]
           }
         },
-        "serve": { "builder": "@angular/build:dev-server", "configurations": { "development": { "buildTarget": "reva-frontend:build" } } }
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "allowedHosts": ["essence-roots-classification-list.trycloudflare.com"]
+          },
+          "configurations": {
+            "development": {
+              "buildTarget": "reva-frontend:build"
+            }
+          }
+        }
       }
     }
   },
