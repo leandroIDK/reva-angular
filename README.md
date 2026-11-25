@@ -27,6 +27,18 @@ npm start
 Frontend: http://localhost:4200. Documentación API: http://localhost:8000/docs.
 Angular usa un proxy `/api` al backend. En producción configurar ese mismo enrutamiento con HTTPS.
 
+## Despliegue en Render
+
+El repositorio incluye `render.yaml`, `backend/Dockerfile` y una configuración para publicar el frontend como sitio estático. El backend aplica migraciones idempotentes al iniciar y escucha el puerto entregado por Render.
+
+1. En Render crea un **Web Service** desde este repositorio con `Root Directory: backend`, runtime **Docker** y health check `/health`. También puedes usar el Blueprint `render.yaml`.
+2. Configura en el backend `DATABASE_URL`, `APISPERU_TOKEN`, `NOMINATIM_USER_AGENT`, `MODO_DEMOSTRACION=true` y, inicialmente, `CORS_ORIGINS` con la URL pública final del frontend.
+3. Cuando Render entregue la URL del backend (`https://...onrender.com`), crea un **Static Site** con `Root Directory: frontend`, build command `npm ci && npm run build:render` y directorio publicado `dist/reva-frontend/browser`.
+4. En el sitio estático define `REVA_API_URL` con la URL HTTPS del backend. No lleva `/api` al final.
+5. Configura o conserva la regla SPA `/* → /index.html`, incluida en `render.yaml`, y vuelve a desplegar el backend después de definir su `CORS_ORIGINS`.
+
+Nunca subas `.env`, la URL de PostgreSQL, tokens de APIs Perú ni contraseñas al repositorio.
+
 ## Base de datos y seguridad
 
 Migración versionada en `backend/migrations/001_inicial.sql`. Esquema privado `reva`, nombres españoles en snake_case, claves foráneas y función SQL `calcular_comision` (5 %).

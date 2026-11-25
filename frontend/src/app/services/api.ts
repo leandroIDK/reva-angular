@@ -5,9 +5,14 @@ export interface Producto { id_producto:string; titulo:string; descripcion:strin
 @Injectable({providedIn:'root'})
 export class Api {
   usuario=signal<Usuario|null>(null);
+  private readonly api_url=this.obtenerApiUrl();
+  private obtenerApiUrl():string {
+    const url=(globalThis as typeof globalThis & {REVA_API_URL?:string}).REVA_API_URL ?? '';
+    return url.startsWith('https://') ? url.replace(/\/$/,'') : '';
+  }
   async llamar<T=any>(ruta:string,method='GET',datos?:unknown):Promise<T> {
     const token=sessionStorage.getItem('reva_token');
-    const r=await fetch('/api'+ruta,{method,headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},...(datos===undefined?{}:{body:JSON.stringify(datos)})});
+    const r=await fetch(this.api_url+'/api'+ruta,{method,headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},...(datos===undefined?{}:{body:JSON.stringify(datos)})});
     let body:any;
     try { body=await r.json(); } catch { throw new Error('El servidor no respondió correctamente. Comprueba que el backend esté iniciado.'); }
     if(!r.ok){ if(r.status===401){sessionStorage.removeItem('reva_token');this.usuario.set(null);} throw new Error(typeof body.detail==='string'?body.detail:'Revisa los datos del formulario.'); }

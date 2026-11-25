@@ -5,6 +5,7 @@
   "scripts": {
     "start": "ng serve --configuration development --proxy-config proxy.conf.json",
     "build": "ng build",
+    "build:render": "npm run build && node scripts/configurar-api-produccion.mjs",
     "test": "ng test"
   },
   "dependencies": {
