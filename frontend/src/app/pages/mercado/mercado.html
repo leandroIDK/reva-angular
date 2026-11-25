@@ -1,0 +1,77 @@
+<section class="shell page">
+  <p class="eyebrow">Comercio local · Huancayo, El Tambo y Chilca</p>
+  @if(error()){<div class="alert error" role="alert">{{error()}}</div>}
+  @if(mensaje()){<div class="alert" role="status">{{mensaje()}}</div>}
+  @if(ocupado()){<p role="status">Procesando…</p>}
+  @switch(vista){
+    @case('cuenta'){
+      <h1>Tu espacio en REVA.</h1>
+      @if(api.usuario()){<article class="panel"><h2>Hola, {{api.usuario()?.nombres}}</h2><p>{{api.usuario()?.correo}} · {{api.usuario()?.rol}}</p><a class="button" routerLink="/vender">Administrar mi negocio</a></article>}
+      @else{<form class="panel form" (ngSubmit)="autenticar()"><h2>{{registro?'Crea tu cuenta':'Inicia sesión'}}</h2>
+        @if(registro){<label>Nombres<input name="nombres" [(ngModel)]="nombres" required minlength="2" autocomplete="name"></label>}
+        <label>Correo<input name="correo" type="email" [(ngModel)]="correo" required autocomplete="email"></label>
+        <label>Contraseña<input name="clave" type="password" [(ngModel)]="clave" minlength="10" maxlength="72" required autocomplete="current-password"></label>
+        <button [disabled]="ocupado()">{{registro?'Registrarme':'Ingresar'}}</button><button type="button" class="secondary" (click)="registro=!registro">{{registro?'Ya tengo una cuenta':'Crear una cuenta'}}</button>
+      </form>}
+    }
+    @case('ofertas'){
+      <h1>Encuentra más.<br><strong>Gasta menos.</strong></h1><p class="lead">Dale una nueva oportunidad al inventario de los negocios de tu ciudad.</p>
+      <div class="filters"><label>Buscar<input [(ngModel)]="busqueda" placeholder="¿Qué estás buscando?"></label><label>Distrito<select [(ngModel)]="distrito"><option value="">Todos</option><option>Huancayo</option><option>El Tambo</option><option>Chilca</option></select></label></div>
+      <div class="cards">
+        @for(p of filtrados();track p.id_producto){<article>
+          @if(p.imagenes.length){<img class="product-image" [src]="p.imagenes[0].url" [alt]="p.titulo" loading="lazy">}@else{<div class="product-placeholder">REVA.</div>}
+          <small>{{p.distrito}} · {{p.tienda}}</small><h2>{{p.titulo}}</h2><p>{{p.descripcion}}</p><p>{{p.condicion}} · {{p.material}}</p>
+          @if(p.modalidad==='venta'){<label>Variante<select [(ngModel)]="seleccion[p.id_producto]"><option [ngValue]="undefined">Selecciona talla y color</option>@for(v of p.variantes;track v.id_variante){<option [value]="v.id_variante">{{v.talla||'Única'}} · {{v.color||'Sin especificar'}} · S/ {{v.precio}} · {{v.stock}} disponibles</option>}</select></label><button [disabled]="ocupado()||!seleccion[p.id_producto]" (click)="agregar(p)">Añadir al carrito</button>}
+          @else{<a class="button" routerLink="/subastas">Ver subastas</a>}
+          <details><summary>Reportar publicación</summary><label>Motivo<input [(ngModel)]="motivo" minlength="5"></label><button class="secondary" (click)="reportar(p)" [disabled]="ocupado()">Enviar reporte</button></details>
+        </article>}@empty{<p class="notice">Aún no hay publicaciones aprobadas que coincidan con tu búsqueda.</p>}
+      </div>
+    }
+    @case('vender'){
+      <h1>Tu negocio crece aquí.</h1><p class="lead">Registra tu tienda y envía tus productos a revisión.</p>
+      <details class="panel" open><summary>1. Datos de tu tienda</summary><form class="form" (ngSubmit)="guardarTienda()">
+        <label>DNI<input name="dni" [(ngModel)]="tienda.dni" pattern="[0-9]{8}" maxlength="8" required></label>
+        <label class="check"><input type="checkbox" name="consentimiento" [(ngModel)]="tienda.consentimiento" required>Autorizo consultar mi DNI para completar los datos de mi tienda.</label>
+        <button type="button" class="secondary" [disabled]="ocupado()||!tienda.consentimiento" (click)="consultar()">Consultar DNI</button><p>{{identidad}}</p><small>La consulta completa los datos; no acredita por sí sola la identidad de quien se registra.</small>
+        <label>Nombre comercial<input name="tienda" [(ngModel)]="tienda.nombre" minlength="2" required></label><label>Distrito<select name="distrito" [(ngModel)]="tienda.distrito"><option>Huancayo</option><option>El Tambo</option><option>Chilca</option></select></label><label>Dirección<input name="direccion" [(ngModel)]="tienda.direccion" minlength="5" required></label><button [disabled]="ocupado()">Guardar tienda</button>
+        <button type="button" class="secondary" [disabled]="ocupado()" (click)="ubicar()">Buscar dirección</button>
+        @for(l of ubicaciones();track l.direccion){<p>{{l.direccion}} · {{l.lat}}, {{l.lng}}</p>}
+        @if(ubicaciones().length){<small>Resultados de <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>.</small>}
+        <label>RUC para consulta comercial (opcional)<input name="ruc" [(ngModel)]="ruc" maxlength="11"></label><button type="button" class="secondary" [disabled]="ocupado()||!tienda.consentimiento" (click)="consultarRuc()">Consultar RUC</button><p>{{resultadoRuc()}}</p>
+      </form></details>
+      <details class="panel" open><summary>2. Publica un producto</summary><form class="form" (ngSubmit)="publicar()">
+        <label>Título<input name="titulo" [(ngModel)]="producto.titulo" minlength="3" required></label><label>Descripción<textarea name="descripcion" [(ngModel)]="producto.descripcion" minlength="10" required></textarea></label>
+        <label>Categoría<select name="categoria" [(ngModel)]="producto.id_categoria">@for(c of categorias();track c.id_categoria){<option [ngValue]="c.id_categoria">{{c.nombre}}</option>}</select></label>
+        <label>Material<input name="material" [(ngModel)]="producto.material"></label><label>Condición<select name="condicion" [(ngModel)]="producto.condicion"><option>Nuevo</option><option>Como nuevo</option><option>Usado</option></select></label>
+        <label>URL de imagen (HTTPS)<input name="imagen" type="url" [(ngModel)]="producto.imagen" placeholder="https://…"></label>
+        @for(v of variantes;track $index){<fieldset><legend>Variante {{$index+1}}</legend><label>Talla<input [name]="'talla'+$index" [(ngModel)]="v.talla"></label><label>Color<input [name]="'color'+$index" [(ngModel)]="v.color"></label><label>Precio S/<input type="number" [name]="'precio'+$index" [(ngModel)]="v.precio" min="0.01" step="0.01" required></label><label>Stock<input type="number" [name]="'stock'+$index" [(ngModel)]="v.stock" min="1" required></label></fieldset>}
+        <button type="button" class="secondary" (click)="variantes.push({talla:'',color:'',precio:20,stock:1})">Añadir variante</button>
+        <label>Modalidad<select name="modalidad" [(ngModel)]="producto.modalidad"><option value="venta">Venta directa</option><option value="subasta">Subasta (requiere plan)</option></select></label>
+        @if(producto.modalidad==='subasta'){<p>Una sola variante y una unidad. La subasta requiere aprobación.</p><label>Precio inicial S/<input type="number" name="inicial" [(ngModel)]="producto.precio_inicial" min="0.01" step="0.01" required></label><label>Incremento mínimo S/<input type="number" name="incremento" [(ngModel)]="producto.incremento" min="0.01" step="0.01" required></label><label>Cierre<input type="datetime-local" name="cierre" [(ngModel)]="producto.cierre" required></label>}
+        <button [disabled]="ocupado()">Enviar a aprobación</button>
+      </form></details><h2>Mis publicaciones</h2>@for(p of productos();track p.id_producto){<article class="panel"><h3>{{p.titulo}}</h3><span class="badge">{{p.estado}}</span><p>{{p.motivo}}</p></article>}
+    }
+    @case('planes'){
+      <h1>Un plan para tu negocio.</h1><p class="notice">Activación de demostración: no se cobrará dinero.</p><div class="cards">@for(p of planes();track p.id_plan){<article><h2>{{p.nombre}}</h2><p class="price">S/ {{p.precio}} <small>/mes</small></p><p>{{p.limite_publicaciones}} publicaciones</p><p>{{p.limite_subastas}} subastas simultáneas</p><button [disabled]="ocupado()" (click)="activar(p.id_plan)">Activar demostración</button></article>}</div>
+    }
+    @case('carrito'){
+      <h1>Tu carrito.</h1>@for(i of items();track i.id_variante){<article class="panel"><h3>{{i.titulo}}</h3><p>{{i.talla}} · {{i.color}} · S/ {{i.precio}}</p><div class="actions"><button [disabled]="ocupado()" (click)="cantidad(i,i.cantidad-1)">−</button><span>{{i.cantidad}}</span><button [disabled]="ocupado()" (click)="cantidad(i,i.cantidad+1)">+</button><button class="secondary" [disabled]="ocupado()" (click)="cantidad(i,0)">Quitar</button></div></article>}@empty{<p>Tu carrito está vacío.</p>}
+      @if(items().length){<form class="panel form" (ngSubmit)="comprar()"><h2>Total: S/ {{total()|number:'1.2-2'}}</h2><p>La comisión del 5 % se descuenta al vendedor. No se añade al total.</p><label>Dirección para coordinar entrega<input name="direccion" [(ngModel)]="direccion" minlength="5" required></label><p>Entrega por coordinar. Sin tarifa automática de envío ni cobro real en esta demostración.</p><button [disabled]="ocupado()">Confirmar pedido de demostración</button></form>}
+      <h2>Mis pedidos</h2>@for(p of pedidos();track p.id_pedido){<article class="panel"><p>{{p.creado_en|date:'short'}} · S/ {{p.total}} · {{p.estado}}</p><small>{{p.id_pedido}}</small></article>}
+    }
+    @case('subastas'){
+      <h1>Haz tu mejor oferta.</h1><p class="notice">Pujas de demostración. No se comprueba ni se retiene saldo bancario.</p><div class="cards">@for(s of subastas();track s.id_subasta){<article><span class="badge">{{vencida(s)?'Finalizada':'Abierta'}}</span><h2>{{s.titulo}}</h2><p>{{s.distrito}}</p><p>Oferta actual: S/ {{s.ultima_puja??s.precio_inicial}}</p><p>Cierra: {{s.cierre|date:'medium'}}</p><form (ngSubmit)="pujar(s)"><label>Tu puja (mínimo S/ {{minimo(s)}})<input type="number" [name]="s.id_subasta" [(ngModel)]="montos[s.id_subasta]" [min]="minimo(s)" step="0.01" required></label><button [disabled]="ocupado()||vencida(s)">Pujar</button></form></article>}@empty{<p>Todavía no hay subastas aprobadas.</p>}</div>
+    }
+    @case('admin'){
+      <h1>Centro de administración.</h1><label>Motivo de la acción<input [(ngModel)]="motivo" minlength="3" placeholder="Indica el motivo de aprobación, rechazo o suspensión"></label>
+      <h2>Publicaciones y subastas</h2><div class="cards">@for(p of productos();track p.id_producto){<article><span class="badge">{{p.estado}} · {{p.modalidad}}</span><h3>{{p.titulo}}</h3><p>{{p.descripcion}}</p><div class="actions"><button [disabled]="ocupado()||motivo.length<3" (click)="moderar(p,'aprobado')">Aprobar</button><button class="secondary" [disabled]="ocupado()||motivo.length<3" (click)="moderar(p,'rechazado')">Rechazar</button></div></article>}</div>
+      <h2>Cuentas</h2>@for(u of usuarios();track u.id_usuario){<article class="panel"><h3>{{u.nombres}}</h3><p>{{u.correo}} · {{u.rol}} · {{u.activo?'Activa':'Suspendida'}}</p>@if(u.rol!=='administrador'){<button [disabled]="ocupado()||motivo.length<3" (click)="cuenta(u)">{{u.activo?'Suspender':'Reactivar'}}</button>}</article>}
+      <h2>Reportes</h2>@for(r of reportes();track r.id_reporte){<article class="panel"><p>{{r.motivo}} · {{r.estado}}</p><button [disabled]="ocupado()||r.estado==='resuelto'" (click)="resolver(r.id_reporte)">Marcar resuelto</button></article>}
+      @if(metricas();as m){<article class="panel"><h2>Actividad de REVA</h2><p>{{m.tiendas}} tiendas · {{m.pendientes}} publicaciones pendientes · {{m.pedidos_demo}} pedidos de demostración</p><p>Ventas simuladas S/ {{m.ventas_demo}} · Comisiones simuladas S/ {{m.comisiones_demo}}</p></article>}
+      <details class="panel"><summary>Crear campaña de video</summary><form class="form" (ngSubmit)="crearAnuncio()"><label>Marca<input name="marca" [(ngModel)]="campana.marca" required minlength="2"></label><label>Video MP4 / WebM (HTTPS)<input type="url" name="video" [(ngModel)]="campana.video_url" required></label><label>Enlace de destino<input type="url" name="destino" [(ngModel)]="campana.destino_url" required></label><label>Vencimiento<input type="datetime-local" name="vence" [(ngModel)]="campana.vence_en" required></label><label class="check"><input type="checkbox" name="activa" [(ngModel)]="campana.activa">Activar campaña</label><p>Utiliza material propio o autorizado por la marca.</p><button [disabled]="ocupado()">Guardar campaña</button></form></details>
+    }
+    @case('crece'){
+      <h1>Tu siguiente paso,<br><strong>con REVA Crece.</strong></h1><p class="lead">Herramientas para dar visibilidad a tu negocio, recuperar capital y aprovechar lo que ya tienes.</p><div class="cards"><article><h2>01 · Ordena tu inventario</h2><p>Separa productos por talla y color. Registra cantidades reales para evitar vender artículos agotados.</p></article><article><h2>02 · Publica con claridad</h2><p>Incluye fotos propias, medidas, estado y una descripción honesta. Una oferta clara ayuda a tomar mejores decisiones.</p></article><article><h2>03 · Prepara tus números</h2><p>Considera el costo del producto, la comisión y la entrega antes de fijar un precio.</p></article></div>
+    }
+  }
+</section>

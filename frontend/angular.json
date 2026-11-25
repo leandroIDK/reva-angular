@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "projects": {
+    "reva-frontend": {
+      "projectType": "application",
+      "root": "",
+      "sourceRoot": "src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "src/main.ts",
+            "index": "src/index.html",
+            "polyfills": ["zone.js"],
+            "tsConfig": "tsconfig.app.json",
+            "assets": ["src/assets"],
+            "styles": ["src/styles.css"]
+          }
+        },
+        "serve": { "builder": "@angular/build:dev-server", "configurations": { "development": { "buildTarget": "reva-frontend:build" } } }
+      }
+    }
+  },
+  "cli": {
+    "analytics": "968ca6f7-4562-4216-999b-e42e878063b0"
+  }
+}

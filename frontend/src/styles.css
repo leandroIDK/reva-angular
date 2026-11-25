@@ -1,0 +1,30 @@
+/* Fuentes del sistema: compilación y navegación sin dependencia de Google Fonts. */
+body { font-family: 'Segoe UI', sans-serif; }
+button,input,select,textarea {font:inherit}
+button {border:0;border-radius:10px;padding:.8rem 1rem;background:#6638c3;color:white;cursor:pointer;margin-top:.6rem}
+button:disabled {opacity:.5;cursor:not-allowed}
+button.secondary {background:#eee8fa;color:#4c278e}
+label {display:flex;flex-direction:column;gap:.4rem;margin:.7rem 0;font-weight:600}
+input,select,textarea {width:100%;border:1px solid #cfc6df;border-radius:8px;padding:.8rem;background:white;color:#211a35}
+textarea {min-height:100px;resize:vertical}
+.panel {background:white;border:1px solid #e5ddf1;border-radius:16px;padding:1.5rem;margin:1rem 0}
+.form {max-width:640px;display:grid;gap:.5rem}
+.check {flex-direction:row;align-items:center}.check input {width:auto}
+.alert {position:sticky;top:8px;z-index:2;background:#e1f4e9;color:#185234;padding:1rem;border-radius:12px;margin-bottom:1rem}
+.error {background:#ffe5e6;color:#902534}
+.filters {display:flex;gap:1rem;margin:2rem 0}.filters label {flex:1}
+.product-image,.product-placeholder {width:100%;height:210px;object-fit:cover;border-radius:12px;background:#eee6fa}
+.product-placeholder {display:grid;place-items:center;font-size:2.5rem;color:#6638c3;font-weight:bold}
+.badge {background:#eee8fa;color:#6334ad;padding:.35rem .65rem;border-radius:30px;font-size:.85rem}
+.actions {display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}.price {font-size:2rem;font-weight:bold}.price small {font-size:1rem}
+fieldset {border:1px solid #ddd1ee;border-radius:10px} summary {cursor:pointer;font-weight:bold;padding:.5rem 0}
+nav {flex-wrap:wrap;align-items:center} :focus-visible {outline:3px solid #ae87ed;outline-offset:3px}
+@media(max-width:760px){.filters{flex-direction:column}.page h1{font-size:2.6rem}}
+:root { font-family: 'DM Sans', sans-serif; color: #1e1930; background: #fbfaff; font-size: 16px; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+.site-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem clamp(1rem, 5vw, 5rem); background: #fff; border-bottom: 1px solid #eee9f7; }
+.brand { color: #6638c3; font: 700 1.7rem 'Space Grotesk'; text-decoration: none; }.brand span { color: #e95b82; }
+nav { display: flex; gap: 1.2rem; } nav a { color: #4c4563; text-decoration: none; font-weight: 600; } nav a.active { color: #6638c3; }
+.shell { width: min(1120px, calc(100% - 2rem)); margin: auto; }.hero { display: grid; grid-template-columns: 1.15fr .85fr; gap: 4rem; padding: 6rem 0 5rem; align-items: center; }.eyebrow { color: #6d3cc4; font-size: .8rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; } h1,h2 { font-family: 'Space Grotesk', sans-serif; } h1 { font-size: clamp(2.6rem, 6vw, 5.2rem); line-height: .98; margin: .8rem 0 1.3rem; } h1 strong { color: #6d3cc4; }.lead { color: #6c6580; font-size: 1.15rem; line-height: 1.7; max-width: 650px; }.button { display: inline-block; margin-top: 1.5rem; padding: .85rem 1.2rem; border-radius: .7rem; background: #6d3cc4; color: #fff; font-weight: 700; text-decoration: none; }.hero-card { min-height: 320px; padding: 2.4rem; border-radius: 2rem; background: linear-gradient(145deg,#e8dcff,#f9d7e5); box-shadow: 0 20px 50px #6d3cc42b; }.hero-card span { color: #6d3cc4; font: 700 2rem 'Space Grotesk'; }.hero-card h2 { font-size: 2.2rem; margin-top: 7rem; }.value-grid,.cards,.admin-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; padding-bottom: 4rem; }.value-grid article,.cards article,.admin-grid article { padding: 1.5rem; background: #fff; border: 1px solid #eee9f7; border-radius: 1rem; }.value-grid span { color: #e95b82; font-weight: 700; }.page { padding: 5rem 0; min-height: 70vh; }.empty-state,.notice { margin-top: 2rem; padding: 2rem; border-radius: 1rem; background: #f0eafd; color: #554b70; }.admin-grid { grid-template-columns: repeat(2,1fr); margin-top: 2rem; } footer { padding: 2rem; text-align: center; color: #756d87; background: #211a35; }
+@media (max-width: 760px) { .site-header { align-items: flex-start; flex-direction: column; } nav { flex-wrap: wrap; gap: .8rem; }.hero { grid-template-columns: 1fr; padding: 3.5rem 0; }.hero-card h2 { margin-top: 4rem; }.value-grid,.cards,.admin-grid { grid-template-columns: 1fr; } }

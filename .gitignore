@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.angular/
+.env
+__pycache__/
+.venv/
+.uv-cache/
+.npm-cache/
+.pytest_cache/
+*.egg-info/
