@@ -15,8 +15,8 @@ export class Mercado implements OnInit {
   variantes=[{talla:'',color:'',precio:20,stock:1}];
   campana={marca:'',video_url:'',destino_url:'',activa:false,vence_en:''}; metricas=signal<any>(null);
   ruc=''; resultadoRuc=signal(''); ubicaciones=signal<any[]>([]);
-  consultarRuc(){this.ejecutar(async()=>{const r=await this.api.llamar('/documentos/ruc/'+this.ruc+'?consentimiento='+this.tienda.consentimiento);this.resultadoRuc.set([r.razonSocial,r.estado,r.direccion].join(' · '));});}
-  ubicar(){this.ejecutar(async()=>{this.ubicaciones.set(await this.api.llamar('/geocodificar?direccion='+encodeURIComponent(this.tienda.direccion)));});}
+  consultarRuc(){this.resultadoRuc.set('');this.ejecutar(async()=>{const r=await this.api.llamar('/documentos/ruc/'+this.ruc+'?consentimiento='+this.tienda.consentimiento);this.resultadoRuc.set([r.razonSocial,r.estado,r.direccion].join(' · '));});}
+  ubicar(){this.ubicaciones.set([]);this.ejecutar(async()=>{this.ubicaciones.set(await this.api.llamar('/geocodificar?direccion='+encodeURIComponent(this.tienda.direccion)));});}
   crearAnuncio(){this.ejecutar(async()=>{await this.api.llamar('/admin/anuncios','POST',{...this.campana,vence_en:new Date(this.campana.vence_en).toISOString()});this.mensaje.set('Campaña registrada. Si está activa aparecerá en Inicio.');});}
   ngOnInit(){this.cargar();}
   async ejecutar(fn:()=>Promise<void>){if(this.ocupado())return;this.ocupado.set(true);this.error.set('');this.mensaje.set('');try{await fn();}catch(e){this.error.set(e instanceof Error?e.message:'Error inesperado');}finally{this.ocupado.set(false);}}
@@ -29,7 +29,7 @@ export class Mercado implements OnInit {
   });}
   filtrados(){return this.productos().filter(p=>p.titulo.toLowerCase().includes(this.busqueda.toLowerCase())&&(!this.distrito||p.distrito===this.distrito));}
   autenticar(){this.ejecutar(async()=>{if(this.registro)await this.api.llamar('/registro','POST',{correo:this.correo,clave:this.clave,nombres:this.nombres});await this.api.entrar(this.correo,this.clave);this.clave='';this.mensaje.set('Sesión iniciada. Ya puedes explorar y comprar.');});}
-  consultar(){this.ejecutar(async()=>{const d=await this.api.llamar('/documentos/dni/'+this.tienda.dni+'?consentimiento='+this.tienda.consentimiento);this.identidad=[d.nombres,d.apellidoPaterno,d.apellidoMaterno].join(' ');});}
+  consultar(){this.identidad='';this.ejecutar(async()=>{const d=await this.api.llamar('/documentos/dni/'+this.tienda.dni+'?consentimiento='+this.tienda.consentimiento);this.identidad=[d.nombres,d.apellidoPaterno,d.apellidoMaterno].join(' ');});}
   guardarTienda(){this.ejecutar(async()=>{await this.api.llamar('/tienda','POST',this.tienda);await this.api.restaurar();this.mensaje.set('Tienda registrada. Puedes enviar tus productos a revisión.');});}
   publicar(){this.ejecutar(async()=>{await this.api.llamar('/productos','POST',{...this.producto,imagen:this.producto.imagen||null,cierre:this.producto.cierre?new Date(this.producto.cierre).toISOString():null,variantes:this.variantes});this.productos.set(await this.api.llamar('/mis-productos'));this.mensaje.set('Publicación enviada al administrador.');});}
   agregar(p:Producto){this.ejecutar(async()=>{const id=this.seleccion[p.id_producto]||p.variantes[0]?.id_variante;await this.api.llamar('/carrito','PUT',{id_variante:id,cantidad:1});this.mensaje.set('Producto añadido al carrito.');});}
